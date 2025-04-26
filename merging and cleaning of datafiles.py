@@ -55,6 +55,12 @@ graffiti_df["completion date"] = pd.to_datetime(graffiti_df["completion date"], 
 graffiti_df["year"] = graffiti_df["completion date"].dt.year
 graffiti_df["month"] = graffiti_df["completion date"].dt.month
 graffiti_df = pd.merge(graffiti_df, communities[["community area", "community"]], how = "left", on = "community area")
+graffiti_groupby = pd.DataFrame(graffiti_df.groupby(["year", "month", "community"])["zip code"].count().reset_index())
+graffiti_groupby = graffiti_groupby.rename(columns = {"zip code": "monthly_count"})
+graffiti_df = pd.merge(graffiti_df, graffiti_groupby, how = "left", on = ["year", "month", "community"])
+graffiti_df.head()
+
+
 
 #potholes df
 potholes.columns = potholes.columns.str.lower()
