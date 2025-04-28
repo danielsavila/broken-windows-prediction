@@ -37,13 +37,13 @@ crime_df["date"] = pd.to_datetime(crime_df["date"])
 crime_df["month"] = crime_df["date"].dt.month
 
 # merging community areas (numeric) with community areas (names) to perform groupby
-crime_df = pd.merge(crime_df, communities[["community", "community area"]], how = "left", on = "community area")
+crime_df = pd.merge(crime_df, communities[["community", "community area"]], how = "left", on = "community area").drop_duplicates()
 crime_groupby = pd.DataFrame(crime_df.groupby(["year", "month", "community"])["id"].count().reset_index())
 crime_groupby = crime_groupby.rename(columns = {"id" : "monthly_count"})
 crime_groupby = pd.merge(crime_groupby, communities[["community", 'community area']], how = "left", on = "community")
 
 #merging the count of crimes that occurred within each neighborhood for each month each year back into crimes_df
-crime_df = pd.merge(crime_df, crime_groupby, how = "left", on = ["year", "month", "community", "community area"])
+crime_df = pd.merge(crime_df, crime_groupby, how = "left", on = ["year", "month", "community", "community area"]).drop_duplicates()
 crime_df.head()
 
 
@@ -54,24 +54,24 @@ graffiti_df["creation date"] = pd.to_datetime(graffiti_df["creation date"], form
 graffiti_df["completion date"] = pd.to_datetime(graffiti_df["completion date"], format = "%m/%d/%Y")
 graffiti_df["year"] = graffiti_df["completion date"].dt.year
 graffiti_df["month"] = graffiti_df["completion date"].dt.month
-graffiti_df = pd.merge(graffiti_df, communities[["community area", "community"]], how = "left", on = "community area")
+graffiti_df = pd.merge(graffiti_df, communities[["community area", "community"]], how = "left", on = "community area").drop_duplicates()
 graffiti_groupby = pd.DataFrame(graffiti_df.groupby(["year", "month", "community"])["zip code"].count().reset_index())
 graffiti_groupby = graffiti_groupby.rename(columns = {"zip code": "monthly_count"})
-graffiti_df = pd.merge(graffiti_df, graffiti_groupby, how = "left", on = ["year", "month", "community"])
+graffiti_df = pd.merge(graffiti_df, graffiti_groupby, how = "left", on = ["year", "month", "community"]).drop_duplicates()
 graffiti_df.head()
 
 
 
 #potholes df
 potholes.columns = potholes.columns.str.lower()
-potholes = pd.merge(potholes, communities[["community area", "community"]], how = "left", on = "community area")
+potholes = pd.merge(potholes, communities[["community area", "community"]], how = "left", on = "community area").drop_duplicates()
 potholes["completion date"] = pd.to_datetime(potholes["completion date"])
 potholes["completion date"] = pd.to_datetime(potholes["creation date"])
 potholes["month"] = potholes["completion date"].dt.month
 potholes["year"] = potholes["completion date"].dt.year
 potholes_groupby = pd.DataFrame(potholes.groupby(["year", "month", "community"])["creation date"].count().reset_index())
 potholes_groupby = potholes_groupby.rename(columns = {"creation date": "monthly_count"})
-potholes = pd.merge(potholes, potholes_groupby, how = "left", on = ["year", "month", "community"])
+potholes = pd.merge(potholes, potholes_groupby, how = "left", on = ["year", "month", "community"]).drop_duplicates()
 
 #exporting cleaned datasets to desktop
 #fyi that these end up being massive files
