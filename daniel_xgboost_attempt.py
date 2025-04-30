@@ -2,35 +2,70 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import xgboost
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
-path = "c:/Users/danie/Desktop"
+path = "c:/Users/danie/OneDrive/Documents/GitHub/broken-windows-prediction/data"
 os.chdir(path)
 
-crime = pd.read_csv("crime.csv")
-graffiti = pd.read_csv("graffiti.csv")
-potholes = pd.read_csv("potholes.csv")
+df = pd.read_csv("monthly_count_df.csv").drop("Unnamed: 0", axis = 1)
 
-labels = graffiti[["year", "month", "community", "monthly_count"]]
-labels = labels.rename(columns = {"monthly_count": "monthly_count_graffiti"}).drop_duplicates()
-labels = pd.merge(labels, potholes[["year", "month", "community", "monthly_count"]], how = "inner", on = ["year", "month", "community"])
-labels = labels.rename(columns = {"monthly_count":"monthly_count_potholes"}).drop_duplicates().sort_values(by = "year")
-labels = pd.merge(labels, crime[["year", "month", "community", "monthly_count"]], how = "inner", on = ["year", "month", "community"]).drop_duplicates()
-labels = labels.rename(columns = {"monthly_count":"monthly_count_crime"}).sort_values(by = ["year", "month"], ascending = True)
-labels.drop("date", inplace = True, axis = 1)
+pd.set_option("display.max_columns", None)
+pd.set_option("max_colwidth", None)
 
-labels.to_csv("monthly_count_df.csv")
+seed = 1234567
 
-#having trouble shifting the columns so that they match the columns right
-labels["date"] = pd.to_datetime(labels["year"].astype(str) + '-' + labels["month"].astype(str)) + pd.DateOffset(months = 1)
+#xgboost does not take in categorical features, need to make the community column categorical
+df["community"] = df["community"].astype("category")
 
+x_train, x_test, y_train, y_test = train_test_split(df.loc[:, "year":"monthly_count_potholes"], 
+                                                    df["monthly_count_crime"], 
+                                                    train_size = .7, 
+                                                    random_state = seed, 
+                                                    shuffle = True)
 
-# we are predicting the future months' crime, so we push each month in the crime df one month ahead
-# and month 13 becomes 1
+n_est_list = np.logspace(.00001, 10, num = 10, base = 2)
+n_est_list = [n.astype(int) for n in n_est_list]
+rmselist = []
+rsquare_list = []
 
-plt.scatter(x = labels["monthly_count_graffiti"], y = labels["monthly_count_crime"])
-plt.xlabel("monthly graffiti")
-plt.ylabel("monthly crime")
-plt.show()
+for estimator in n_est_list:
+    xgb = xgboost.XGBRegressor(max_depth = 4, 
+                               n_estimators = estimator, 
+                               objective = "reg:squarederror", 
+                               booster = "gbtree",
+                               random_state = seed,
+                               enable_categorical = True)
+    fit_xgb = xgb.fit(x_train, y_train)
+    y_pred = fit_xgb.predict(x_train)
+    rmselist.append(np.sqrt(mean_squared_error(y_pred, y_train)))
+    rsquare_list.append(fit_xgb.score(x_train,y_train))
+    
+    plt.scatter(x_train["monthly_count_graffiti"], y_pred, c = "blue", s = 2, label = "xgb +" + estimator.astype(str))
+    plt.scatter(x_train["monthly_count_graffiti"], y_train, c = "red", s = 2, label = "true value")
+    plt.grid(axis = "both")
+    plt.xlabel("monthly count graffiti")
+    plt.ylabel("predicted, true values")
+    plt.legend()
+    plt.show()
+    
+results = pd.DataFrame({"n estimators": n_est_list,
+                        "rmse": rmselist,
+                        "r squared": rsquare_list})
 
-plt.scatter(labels["monthly_count_potholes"], labels["monthly_count_crime"])
-plt.show()
+results
+
+xgb = xgboost.XGBRegressor(max_depth =  4,
+                           n_estimators = 1024,
+                           objective = "reg:squarederror",
+                           booster = "gbtree",
+                           random_state = seed,
+                           enable_categorical = True).fit(x_train, y_train)
+xgb_pred = xgb.predict(x_test)
+
+rmse = np.sqrt(mean_squared_error(xgb_pred, y_test))
+rsquare = xgb.score(x_test, y_test)
+
+print(f"root mean squared error: {round(rmse, 5)}")
+print(f"rsquared: {round(rsquare, 5)}")
