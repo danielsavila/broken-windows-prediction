@@ -47,10 +47,10 @@ for estimator in n_est_list:
     rmselist.append(np.sqrt(mean_squared_error(y_pred, y_train)))
     rsquare_list.append(fit_xgb.score(x_train,y_train))
     
-    plt.scatter(x_train["monthly_count_graffiti"], y_pred, c = "blue", s = 2, label = "xgb +" + estimator.astype(str))
-    plt.scatter(x_train["monthly_count_graffiti"], y_train, c = "red", s = 2, label = "true value")
+    plt.scatter(x_train["monthly_count_potholes"], y_pred, c = "blue", s = 2, label = "xgb +" + estimator.astype(str))
+    plt.scatter(x_train["monthly_count_potholes"], y_train, c = "red", s = 2, label = "true value")
     plt.grid(axis = "both")
-    plt.xlabel("monthly count graffiti")
+    plt.xlabel("monthly count potholes")
     plt.ylabel("predicted, true values")
     plt.legend()
     plt.show()
@@ -59,8 +59,7 @@ results = pd.DataFrame({"n estimators": n_est_list,
                         "rmse": rmselist,
                         "r squared": rsquare_list})
 
-results
-
+#instantiating final model
 xgb = xgboost.XGBRegressor(max_depth =  4,
                            n_estimators = 1024,
                            objective = "reg:squarederror",
@@ -74,3 +73,5 @@ rsquare = xgb.score(x_test, y_test)
 
 print(f"root mean squared error: {round(rmse, 5)}")
 print(f"rsquared: {round(rsquare, 5)}")
+
+results
