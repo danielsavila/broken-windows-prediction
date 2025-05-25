@@ -60,8 +60,6 @@ graffiti_groupby = graffiti_groupby.rename(columns = {"zip code": "monthly_count
 graffiti_df = pd.merge(graffiti_df, graffiti_groupby, how = "left", on = ["year", "month", "community"]).drop_duplicates()
 graffiti_df.head()
 
-
-
 #potholes df
 potholes.columns = potholes.columns.str.lower()
 potholes = pd.merge(potholes, communities[["community area", "community"]], how = "left", on = "community area").drop_duplicates()
