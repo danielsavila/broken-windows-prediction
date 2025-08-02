@@ -6,7 +6,6 @@ import xgboost
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from databricks import sql
-import pickle
 
 pd.set_option("display.max_columns", None)
 pd.set_option("max_colwidth", None)
@@ -26,7 +25,7 @@ with sql.connect(server_hostname = os.getenv("DATABRICKS_SERVER_HOSTNAME"),
 df = pd.DataFrame(rows, columns=columns)
 
 # This analysis is predicting next months crime, using previous months crime
-# xgboost does not take in categorical features, need to make the community column categorical
+# xgboost does not take in categorical features, used enable_categorical experimental feature
 
 df["community"] = df["community"].astype("category")
 
@@ -36,60 +35,38 @@ x_train, x_test, y_train, y_test = train_test_split(df.loc[:, ["community", "pre
                                                     random_state = seed, 
                                                     shuffle = True)
 
-n_est_list = np.logspace(.00001, 10, num = 10, base = 2)
-n_est_list = [n.astype(int) for n in n_est_list]
-rmselist = []
-rsquare_list = []
+#now running cross validation to determine best number of trees for this model
 
-#also added the "enable_categorical" to accomodate community feature
-for estimator in n_est_list:
-    xgb = xgboost.XGBRegressor(max_depth = 4, 
-                               n_estimators = estimator, 
-                               objective = "reg:squarederror", 
-                               booster = "gbtree",
-                               random_state = seed,
-                               enable_categorical = True)
-    fit_xgb = xgb.fit(x_train, y_train)
-    y_pred = fit_xgb.predict(x_train)
-    rmselist.append(np.sqrt(mean_squared_error(y_pred, y_train)))
-    rsquare_list.append(fit_xgb.score(x_train,y_train))
-    
-    plt.scatter(x_train["previous_month_potholes"], y_pred, c = "blue", s = 2, label = "xgb +" + estimator.astype(str))
-    plt.scatter(x_train["previous_month_potholes"], y_train, c = "red", s = 2, label = "true value")
-    plt.grid(axis = "both")
-    plt.xlabel("previous month potholes")
-    plt.ylabel("predicted, true values")
-    plt.legend()
-    plt.show()
-    
-results = pd.DataFrame({"n estimators": n_est_list,
-                        "rmse": rmselist,
-                        "r squared": rsquare_list})
+param = {"max_depth": 4, "grow_policy": 
+         "lossguide", "learning_rate": .1, 
+         "objective": "reg:squarederror", 
+         "random_state": seed, 
+         "booster": "gbtree"}
 
-#instantiating model and using early stopping rounds to have algorithm test comparison of validation vs training set rmse
-xgb = xgboost.XGBRegressor(max_depth =  5,
-                           n_estimators = 4096,
-                           objective = "reg:squarederror",
-                           booster = "gbtree",
-                           random_state = seed,
-                           enable_categorical = True,
-                           early_stopping_rounds = 100).fit(x_train, y_train, eval_set = [(x_train, y_train), (x_test, y_test)])
-xgb_pred = xgb.predict(x_test)
+num_rounds = 150
 
-rmse = np.sqrt(mean_squared_error(xgb_pred, y_test))
-rsquare = xgb.score(x_test, y_test)
+train_data = xgboost.DMatrix(x_train, label = y_train, enable_categorical = True)
+xgb_cv = xgboost.cv(params = param,
+       dtrain = train_data,
+       num_boost_round = num_rounds,
+       nfold = 5,
+       metrics = {"rmse"})
 
-print(f"root mean squared error: {round(rmse, 5)}")
-print(f"rsquared: {round(rsquare, 5)}")
+xgb_cv
 
-print(xgb.best_iteration)
-results
+print(xgb_cv["test-rmse-mean"].idxmin()) #number of optimal boosting rounds = 130
 
-final_model = xgboost.XGBRegressor(max_depth = 5,
-                                   n_estimators = 41,
+#using optimal number of boosting rounds in final model
+final_model = xgboost.XGBRegressor(max_depth = 4,
+                                   n_estimators = 130,
                                    objective = "reg:squarederror",
                                    booster = "gbtree",
                                    random_state = seed,
                                    enable_categorical = True).fit(x_train, y_train)
+
+pred_values = final_model.predict(x_test)
+test_rmse = np.sqrt(mean_squared_error(pred_values, y_test))
+
+test_rmse # +- 32.98 crimes per month, not bad!
 
 final_model.save_model("final_model.xgb")
