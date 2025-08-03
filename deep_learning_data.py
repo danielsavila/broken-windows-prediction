@@ -29,6 +29,12 @@ def df_to_tensor(df):
     df = torch.Tensor(df).float()
     return df
 
+def create_sequences(data, community_ids, seq_length = 3):
+    ds, comm_ids = [], []
+    for i in range(len(data) - seq_length):
+        ds.append(data[i: i + seq_length])
+        comm_ids.append(community_ids[i + seq_length])
+    return torch.stack(ds), torch.stack(comm_ids)
 
 
 #organizing df by community, then by year and month as prep for rnn
@@ -38,24 +44,33 @@ df = df.groupby("community", group_keys=True, observed = True
 
 #inputting missing values by creating empty df and merging with data
 #this is so rnn has consistent batch sizes later
-mean_crime = df.groupby(["community", "year_previous"])["realized_crime"].mean().reset_index()
+mean_crime = df.groupby(["community", "year_previous"])[["realized_crime", "previous_month_graffiti", "previous_month_potholes"]].mean().reset_index()
 communities = mean_crime["community"].unique()
 years = mean_crime["year_previous"].unique()
 months = np.arange(1,13)
 
 base_df = pd.MultiIndex.from_product([communities, years, months], names = ['community', "year_previous", "month_previous"]).to_frame(index = False)
 base_df = base_df.merge(mean_crime, how = "left", on = ["community", "year_previous"])
+base_df[["realized_crime", "previous_month_graffiti", "previous_month_potholes"]] = base_df[["realized_crime", "previous_month_graffiti", "previous_month_potholes"]].fillna(0)
 df = base_df.merge(df, how = "left", on = ["community", "year_previous", "month_previous"])
-df["realized_crime_x"] = df["realized_crime_y"].combine_first(df["realized_crime_x"])
-df = df.drop("realized_crime_y", axis = 1).rename({"realized_crime_x":"realized_crime"}, axis = 1)
-df.head()
+df["realized_crime_y"] = df["realized_crime_x"].combine_first(df["realized_crime_y"])
+df["previous_month_graffiti_y"] = df["previous_month_graffiti_x"].combine_first(df["previous_month_graffiti_y"])
+df["previous_month_potholes_y"] = df["previous_month_potholes_x"].combine_first(df["previous_month_graffiti_y"])
+df = df.drop(["realized_crime_x", 
+              "previous_month_graffiti_x", 
+              "previous_month_potholes_x"], axis = 1
+              ).rename(
+                        {"realized_crime_y":"realized_crime",
+                        "previous_month_graffiti_y": "previous_month_graffiti",
+                        "previous_month_potholes_y": "previous_month_potholes"}, axis = 1)
 
-#shuffle = False to retain temporal construction of df
-x_train, x_test, y_train, y_test = train_test_split(df.loc[:, ["community", "previous_month_graffiti", "previous_month_potholes", "year_previous", "month_previous"]], 
-                                                    df["realized_crime"], 
-                                                    train_size = .7, 
-                                                    random_state = seed, 
-                                                    shuffle = False)
+#predicting 2018 using 2014 - 2017
+train = df[df["year_previous"].isin([2014, 2015, 2016, 2017])]
+test = df[df["year_previous"] == 2018]
+x_train = train.loc[:, ["community", "previous_month_graffiti", "previous_month_potholes", "year_previous", "month_previous"]]
+x_test = test.loc[:, ["community", "previous_month_graffiti", "previous_month_potholes", "year_previous", "month_previous"]]
+y_train = train.loc[:,"realized_crime"]
+y_test = test.loc[:, "realized_crime"]
 
 
 #some quick data preprocessing to remove community categorical, reintroduce later
