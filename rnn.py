@@ -134,6 +134,8 @@ with torch.no_grad():
     predictions = torch.cat(test_outputs)
 
 
-mse = nn.MSELoss()
-rmse = torch.sqrt(mse(predictions, y_test))
+rmse = torch.sqrt(criterion(predictions, y_test))
 rmse #1.2088, thats great!
+
+
+torch.save(model, "model.pth")

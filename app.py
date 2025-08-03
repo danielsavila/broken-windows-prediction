@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import xgboost as xgb
+import torch
 import numpy as np
 
-model = xgb.XGBRegressor()
-model.load_model("final_model.xgb")
+model = torch.load("model.pth")
 
 fast_app = FastAPI()
 
