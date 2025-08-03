@@ -52,90 +52,94 @@ def create_sequences(data, community_ids, seq_length = 3):
     return torch.stack(ds), torch.stack(comm_ids)
 
 
-x_train, x_train_community_tensor = create_sequences(x_train, community_tensor)
-y_train, _ = create_sequences(y_train, community_tensor)
-x_test, x_test_community_tensor = create_sequences(x_test, community_tensor)
-y_test, _ = create_sequences(y_test, community_tensor)
 
 
-x_train = x_train.to(device)
-x_train_community_tensor = x_train_community_tensor.to(device)
-y_train = y_train.to(device)
-x_test = x_test.to(device)
-x_test_community_tensor = x_test_community_tensor.to(device)
-y_test = y_test.to(device)
+if __name__ == "__main__":
+    x_train, x_train_community_tensor = create_sequences(x_train, community_tensor)
+    y_train, _ = create_sequences(y_train, community_tensor)
+    x_test, x_test_community_tensor = create_sequences(x_test, community_tensor)
+    y_test, _ = create_sequences(y_test, community_tensor)
 
 
-#training the model
-batch_size = 30
-input_size = 4
-hidden_size = 64
-num_layers = 4
-learning_rate = .001
+    x_train = x_train.to(device)
+    x_train_community_tensor = x_train_community_tensor.to(device)
+    y_train = y_train.to(device)
+    x_test = x_test.to(device)
+    x_test_community_tensor = x_test_community_tensor.to(device)
+    y_test = y_test.to(device)
+
+
+    #training the model
+    batch_size = 30
+    input_size = 4
+    hidden_size = 64
+    num_layers = 4
+    learning_rate = .001
+
+    model = RNN(input_size, hidden_size, num_layers).to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr = learning_rate)
+    summary(model)
+
+    torch.manual_seed(seed)
+
     
-model = RNN(input_size, hidden_size, num_layers).to(device)
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr = learning_rate)
-summary(model)
+    it_history = []
+    num_epochs = 350
+    for epoch in range(num_epochs):
+        hidden = model.init_hidden(batch_size)
+        epoch_loss = 0.0
 
-torch.manual_seed(seed)
+        for i in range(0, len(x_train), batch_size):
+            batch_x = x_train[i:i+batch_size].to(device)
+            batch_community_tensor = x_train_community_tensor[i:i + batch_size].to(device)
+            hidden = model.init_hidden(batch_x.size(0))
 
-it_history = []
-num_epochs = 350
-for epoch in range(num_epochs):
-    hidden = model.init_hidden(batch_size)
-    epoch_loss = 0.0
+            outputs = model(batch_x, hidden, batch_community_tensor)
 
-    for i in range(0, len(x_train), batch_size):
-        batch_x = x_train[i:i+batch_size].to(device)
-        batch_community_tensor = x_train_community_tensor[i:i + batch_size].to(device)
-        hidden = model.init_hidden(batch_x.size(0))
+            batch_y = y_train[i:i + batch_size].to(device)
+            batch_loss = criterion(outputs, batch_y.reshape(-1))
+            epoch_loss += batch_loss.item()
 
-        outputs = model(batch_x, hidden, batch_community_tensor)
+            optimizer.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
 
-        batch_y = y_train[i:i + batch_size].to(device)
-        batch_loss = criterion(outputs, batch_y.reshape(-1))
-        epoch_loss += batch_loss.item()
+        it_history.append([epoch, epoch_loss])
+        print(epoch, round(epoch_loss, 2))
 
-        optimizer.zero_grad()
-        batch_loss.backward()
-        optimizer.step()
+    df_history = pd.DataFrame(it_history, columns = ['Epoch', 'Epoch Loss'])
 
-    it_history.append([epoch, epoch_loss])
-    print(epoch, round(epoch_loss, 2))
-
-df_history = pd.DataFrame(it_history, columns = ['Epoch', 'Epoch Loss'])
-
-plt.figure(figsize = (12,6), dpi = 200)
-plt.plot(df_history['Epoch'], df_history['Epoch Loss'], color = 'royalblue')
-plt.xlabel('Epoch')
-plt.ylabel('Epoch Loss')
-plt.grid(axis = 'y')
-plt.show()
+    plt.figure(figsize = (12,6), dpi = 200)
+    plt.plot(df_history['Epoch'], df_history['Epoch Loss'], color = 'royalblue')
+    plt.xlabel('Epoch')
+    plt.ylabel('Epoch Loss')
+    plt.grid(axis = 'y')
+    plt.show()
 
 
-#now using test data
+    #now using test data
 
-model.eval()
+    model.eval()
 
-with torch.no_grad():
-    test_outputs = []
-    
-    for i in range(0, len(x_test), batch_size):
-        batch_x = x_test[i:i + batch_size].to(device)
-        batch_community_tensor = x_test_community_tensor[i:i + batch_size].to(device)
-        batch_y = y_test[i:i + batch_size].to(device)
+    with torch.no_grad():
+        test_outputs = []
+        
+        for i in range(0, len(x_test), batch_size):
+            batch_x = x_test[i:i + batch_size].to(device)
+            batch_community_tensor = x_test_community_tensor[i:i + batch_size].to(device)
+            batch_y = y_test[i:i + batch_size].to(device)
 
-        hidden = model.init_hidden(batch_x.size(0))
-        output = model(batch_x, hidden, batch_community_tensor)
+            hidden = model.init_hidden(batch_x.size(0))
+            output = model(batch_x, hidden, batch_community_tensor)
 
-        test_outputs.append(output.squeeze())
-    
-    predictions = torch.cat(test_outputs)
-
-
-rmse = torch.sqrt(criterion(predictions, y_test))
-rmse #1.2088, thats great!
+            test_outputs.append(output.squeeze())
+        
+        predictions = torch.cat(test_outputs)
 
 
-torch.save(model, "model.pth")
+    rmse = torch.sqrt(criterion(predictions, y_test))
+    rmse #1.2088, thats great!
+
+
+    torch.save(model.state_dict(), "model.pth")
