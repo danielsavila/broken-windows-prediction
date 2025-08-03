@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from xgboost_testing import df
+from deep_learning_data import x_train, x_test, y_train, y_test, community_tensor
 
 #setting up environmental variables for rnn
 #torch.use_deterministic_algorithms(True) #for reproducability
@@ -18,28 +18,6 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE' #for known np package error
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 seed = 123456
-
-#shuffle = False to retain temporal construction of df
-x_train, x_test, y_train, y_test = train_test_split(df.loc[:, ["community", "previous_month_graffiti", "previous_month_potholes", "year_previous", "month_previous"]], 
-                                                    df["realized_crime"], 
-                                                    train_size = .7, 
-                                                    random_state = seed, 
-                                                    shuffle = False)
-
-
-#some quick data preprocessing to remove community categorical, reintroduce later
-communities = x_train["community"]
-communities_unique = sorted(communities.unique())
-community_to_id = {name: idx for idx, name in enumerate(communities_unique)}
-community_ids = communities.map(community_to_id).values
-
-scaler = StandardScaler()
-x_train = x_train.drop("community", axis = 1)
-x_train = scaler.fit_transform(x_train)
-x_train = torch.Tensor(x_train).float()
-y_train = torch.Tensor(y_train.to_numpy())
-
-community_tensor = torch.tensor(community_ids, dtype=torch.long)
 
 
 #instantiating RNN
@@ -76,7 +54,7 @@ batch_size = int(round(x_train.shape[0]/10, 0))
 input_size = 4
 hidden_size = 64
 num_layers = 4
-learning_rate = .001
+learning_rate = .01
     
 model = RNN(input_size, hidden_size, num_layers).to(device)
 criterion = nn.MSELoss()
