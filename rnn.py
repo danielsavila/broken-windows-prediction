@@ -6,8 +6,7 @@ from torch import nn, optim
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-from deep_learning_data import x_train, x_test, y_train, y_test, community_tensor
-from deep_learning_data import create_sequences
+from deep_learning_data import x_train, x_test, y_train, y_test, community_tensor, create_sequences, scaler
 
 #setting up environmental variables for rnn
 #torch.use_deterministic_algorithms(True) #for reproducability
@@ -139,7 +138,14 @@ if __name__ == "__main__":
 
 
     rmse = torch.sqrt(criterion(predictions, y_test))
-    rmse #1.2088, thats great!
+    rmse
 
+    predictions_unscaled = predictions.cpu().detach().numpy()
+    predictions_unscaled = scaler.inverse_transform(predictions_unscaled.reshape(-1,1))
+    predictions_unscaled
+
+    y_test_unscaled = y_test.cpu().detach().numpy()
+    y_test_unscaled = scaler.inverse_transform(y_test_unscaled.reshape(-1,1))
+    y_test_unscaled
 
     torch.save(model.state_dict(), "model.pth")
