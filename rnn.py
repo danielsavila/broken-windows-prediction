@@ -43,7 +43,7 @@ class RNN(nn.Module):
         return torch.zeros(self.num_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
 
 
-def create_sequences(data, community_ids, seq_length = 3):
+def create_sequences(data, community_ids, seq_length = 2):
     ds, comm_ids = [], []
     for i in range(len(data) - seq_length):
         ds.append(data[i: i + seq_length])

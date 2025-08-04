@@ -53,9 +53,9 @@ base_df = pd.MultiIndex.from_product([communities, years, months], names = ['com
 base_df = base_df.merge(mean_crime, how = "left", on = ["community", "year_previous"])
 base_df[["realized_crime", "previous_month_graffiti", "previous_month_potholes"]] = base_df[["realized_crime", "previous_month_graffiti", "previous_month_potholes"]].fillna(0)
 df = base_df.merge(df, how = "left", on = ["community", "year_previous", "month_previous"])
-df["realized_crime_y"] = df["realized_crime_x"].combine_first(df["realized_crime_y"])
-df["previous_month_graffiti_y"] = df["previous_month_graffiti_x"].combine_first(df["previous_month_graffiti_y"])
-df["previous_month_potholes_y"] = df["previous_month_potholes_x"].combine_first(df["previous_month_graffiti_y"])
+df["realized_crime_y"] = df["realized_crime_y"].combine_first(df["realized_crime_x"])
+df["previous_month_graffiti_y"] = df["previous_month_graffiti_y"].combine_first(df["previous_month_graffiti_x"])
+df["previous_month_potholes_y"] = df["previous_month_potholes_y"].combine_first(df["previous_month_graffiti_x"])
 df = df.drop(["realized_crime_x", 
               "previous_month_graffiti_x", 
               "previous_month_potholes_x"], axis = 1

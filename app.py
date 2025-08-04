@@ -42,5 +42,5 @@ def predict(data: InputData):
         output = model(input_tensor, hidden, community_tensor)
 
     output = output.cpu().detach().numpy()
-    output = scaler.inverse_transform(output)
+    output = float(scaler.inverse_transform(output))
     return {"prediction": output}
