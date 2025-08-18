@@ -9,7 +9,7 @@ This project takes data from the Chicago City Data Portal (https://data.cityofch
 
 <!-- OUTCOMES -->
 ## Best Model
-RNN proved to be the best model, with a RMSE of ~2 on the test set. 
+RNN proved to be the best model, with a RMSE of ~2 crimes per month on the test set. 
 
 LSTM and GAN models were also tested (since their implementation is quite straight forward in Pytorch) but they were not as successful as RNN. In a way this makes sense - the connection between crimes/potholes/graffiti that occurred in February probably does not influence crime rates in, say, June. But crime/potholes/graffiti that occurs in February might have an impact in March or April, which means that the vanishing gradient problem does not seem to apply in this context in the way that it might for NLP problems, which LSTM and GAN are better for. 
 
