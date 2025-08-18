@@ -61,5 +61,3 @@ and packaged with Docker and FastAPI.
 ## Contact
 
 Daniel Avila - (https://www.linkedin.com/in/daniel-avila-123392149/) - danielsavila2020@gmail.com
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
