@@ -6,7 +6,8 @@ from torch import nn, optim
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-from deep_learning_data import x_train, x_test, y_train, y_test, community_tensor, create_sequences, scaler
+from deep_learning_data import x_train, x_test, y_train, y_test, community_tensor, create_sequences
+import joblib
 
 #setting up environmental variables for rnn
 #torch.use_deterministic_algorithms(True) #for reproducability
@@ -15,6 +16,7 @@ from deep_learning_data import x_train, x_test, y_train, y_test, community_tenso
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE' #for known np package error
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+y_scaler = joblib.load("y_scaler.pkl")
 seed = 123456
 
 #instantiating RNN
@@ -41,16 +43,6 @@ class RNN(nn.Module):
     
     def init_hidden(self, batch_size):
         return torch.zeros(self.num_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
-
-
-def create_sequences(data, community_ids, seq_length = 2):
-    ds, comm_ids = [], []
-    for i in range(len(data) - seq_length):
-        ds.append(data[i: i + seq_length])
-        comm_ids.append(community_ids[i + seq_length])
-    return torch.stack(ds), torch.stack(comm_ids)
-
-
 
 
 if __name__ == "__main__":
@@ -84,7 +76,7 @@ if __name__ == "__main__":
 
     
     it_history = []
-    num_epochs = 350
+    num_epochs = 200
     for epoch in range(num_epochs):
         hidden = model.init_hidden(batch_size)
         epoch_loss = 0.0
@@ -97,7 +89,7 @@ if __name__ == "__main__":
             outputs = model(batch_x, hidden, batch_community_tensor)
 
             batch_y = y_train[i:i + batch_size].to(device)
-            batch_loss = criterion(outputs, batch_y.reshape(-1))
+            batch_loss = criterion(outputs, batch_y[:, -1, :])
             epoch_loss += batch_loss.item()
 
             optimizer.zero_grad()
@@ -141,11 +133,11 @@ if __name__ == "__main__":
     rmse
 
     predictions_unscaled = predictions.cpu().detach().numpy()
-    predictions_unscaled = scaler.inverse_transform(predictions_unscaled.reshape(-1,1))
+    predictions_unscaled = y_scaler.inverse_transform(predictions_unscaled.reshape(-1,1))
     predictions_unscaled
 
     y_test_unscaled = y_test.cpu().detach().numpy()
-    y_test_unscaled = scaler.inverse_transform(y_test_unscaled.reshape(-1,1))
+    y_test_unscaled = y_scaler.inverse_transform(y_test_unscaled.reshape(-1,1))
     y_test_unscaled
 
     torch.save(model.state_dict(), "model.pth")

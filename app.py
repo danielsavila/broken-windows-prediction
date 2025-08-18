@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from rnn import RNN
-from deep_learning_data import community_to_id, scaler
+from deep_learning_data import community_to_id
 import torch
 import numpy as np
 import pandas as pd
+import joblib
+
+y_scaler = joblib.load("scalers/y_scaler.pkl")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -42,5 +45,5 @@ def predict(data: InputData):
         output = model(input_tensor, hidden, community_tensor)
 
     output = output.cpu().detach().numpy()
-    output = float(scaler.inverse_transform(output))
+    output = float(y_scaler.inverse_transform(output))
     return {"prediction": output}

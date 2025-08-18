@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from xgboost_testing import df
+import joblib
 
 #setting up environmental variables for rnn
 #torch.use_deterministic_algorithms(True) #for reproducability
@@ -19,15 +20,25 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE' #for known np package error
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 seed = 123456
 
-scaler = StandardScaler()
-def df_to_tensor(df):
+def df_to_tensor(df, fit = False, scaler = None):
     df = pd.DataFrame(df)
     if "community" in df.columns:
         df = df.drop("community", axis = 1)
     
-    df = scaler.fit_transform(df)
+    if fit:
+        scaler = StandardScaler()
+        df = scaler.fit_transform(df)
+    else:
+        if scaler is None:
+            raise ValueError("Scaler must be provided when fit=False")
+        df = scaler.transform(df)
+    
     df = torch.Tensor(df).float()
-    return df
+
+    if fit:
+        return df, scaler
+    else:
+        return df
 
 def create_sequences(data, community_ids, seq_length = 3):
     ds, comm_ids = [], []
@@ -80,8 +91,10 @@ community_to_id = {name: idx for idx, name in enumerate(communities_unique)}
 community_ids = communities.map(community_to_id).values
 
 
-x_train = df_to_tensor(x_train)
-y_train = df_to_tensor(y_train)
-x_test = df_to_tensor(x_test)
-y_test = df_to_tensor(y_test)
+x_train, x_scaler = df_to_tensor(x_train, fit = True)
+y_train, y_scaler = df_to_tensor(y_train, fit = True)
+x_test = df_to_tensor(x_test, scaler = x_scaler)
+y_test = df_to_tensor(y_test, scaler = y_scaler)
 community_tensor = torch.tensor(community_ids, dtype=torch.long)
+joblib.dump(x_scaler, "x_scaler.pkl")
+joblib.dump(y_scaler, "y_scaler.pkl")
