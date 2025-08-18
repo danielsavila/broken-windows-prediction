@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import joblib
 
-y_scaler = joblib.load("scalers/y_scaler.pkl")
+y_scaler = joblib.load("y_scaler.pkl")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
